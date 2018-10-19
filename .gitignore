@@ -1,0 +1,8 @@
+derby.log
+gradle-test-hive.iml
+.gradle/4.10.2
+.idea
+build
+.gradle/buildOutputCleanup
+gc.properties
+out

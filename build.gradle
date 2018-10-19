@@ -1,0 +1,97 @@
+buildscript {
+    repositories {
+        maven { url "https://plugins.gradle.org/m2/" }
+        jcenter()
+        mavenCentral()
+    }
+    dependencies {
+        classpath "com.github.jengelman.gradle.plugins:shadow:$shadowPluginV"
+        classpath "gradle.plugin.com.github.maiflai:gradle-scalatest:$scalatestPluginV"
+    }
+}
+
+allprojects {
+    group = 'foo'
+
+    ext {
+        scalaFullV = "${scalaMinorV}.$scalaPatchV"
+        sparkFullV = "$sparkOpenV.$sparkOpenVPatch.$hdpV"
+        sparkTestingBaseV = "${sparkOpenV}.${sparkOpenVPatch}_${sparkTestingBaseNonSparkV}"
+
+        deps = [
+                scalaT                : "org.scalatest:scalatest_${scalaMinorV}:$scalatestV",
+                pgdown                : "org.pegdown:pegdown:$pgdownV",
+                scalaC                : "org.scalacheck:scalacheck_${scalaMinorV}:$scalaCheckV",
+                sparkTestingB         : "com.holdenkarau:spark-testing-base_${scalaMinorV}:$sparkTestingBaseV",
+                sparkCore             : "org.apache.spark:spark-core_${scalaMinorV}:$sparkFullV",
+                sparkSql              : "org.apache.spark:spark-sql_${scalaMinorV}:$sparkFullV",
+                sparkHive             : "org.apache.spark:spark-hive_${scalaMinorV}:$sparkFullV",
+                sparkMllib            : "org.apache.spark:spark-mllib_${scalaMinorV}:$sparkFullV",
+                scalaLib              : "org.scala-lang:scala-library:$scalaFullV"
+        ]
+    }
+
+    repositories {
+        jcenter()
+        maven { url "http://nexus-private.hortonworks.com/nexus/content/groups/public" }
+    }
+
+}
+
+    apply plugin: 'scala'
+    apply plugin: 'com.github.johnrengelman.shadow'
+    apply plugin: 'com.github.maiflai.scalatest'
+
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+
+    dependencies {
+
+        compileOnly deps.sparkCore
+        compileOnly deps.sparkSql
+        compileOnly deps.sparkHive
+        compileOnly deps.scalaLib
+
+        testImplementation deps.scalaT
+        testRuntime deps.pgdown
+        testImplementation deps.scalaC
+        testImplementation deps.sparkTestingB
+
+    }
+
+    configurations {
+        testCompile.extendsFrom compileOnly
+    }
+
+
+    test {
+        maxParallelForks = 1
+        // fix overly long classpath which is causing problems on windows
+        doFirst {
+            def cp = CollectionUtils.join(File.pathSeparator, classpath.getFiles())
+            environment 'CLASSPATH', cp
+            classpath = classpath.filter { false }
+        }
+    }
+
+    shadowJar {
+        zip64 true
+        dependencies {
+            exclude(dependency("com.chuusai:shapeless_$scalaMinorV"))
+        }
+    }
+
+    tasks.withType(ScalaCompile) {
+        scalaCompileOptions.additionalParameters = [
+                "-target:jvm-1.8",
+                "-feature",
+                "-unchecked",
+                "-deprecation",
+                "-Xfuture",
+                "-Xlint:missing-interpolator",
+                "-Yno-adapted-args",
+                "-Ywarn-dead-code",
+                "-Ywarn-numeric-widen",
+                "-Ywarn-value-discard",
+                "-Ywarn-unused"]
+    }
